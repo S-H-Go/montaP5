@@ -1,0 +1,30 @@
+{
+  "name": "montap5",
+  "type": "module",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
+  },
+  "dependencies": {
+    "p5": "^1.9.0"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "^2.6.3",
+    "eslint": "^8.56.0",
+    "lint-staged": "^15.2.1",
+    "simple-git-hooks": "^2.9.0",
+    "typescript": "^5.2.2",
+    "vite": "^5.0.8"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "[ \"$OS\" = \"Windows_NT\" ] && cmd.exe /c \"npm run lint-staged\" || npm run lint-staged"
+  },
+  "lint-staged": {
+    "*": "eslint --fix"
+  }
+}
