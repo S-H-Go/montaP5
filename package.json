@@ -11,15 +11,18 @@
     "lint:fix": "eslint . --fix"
   },
   "dependencies": {
-    "p5": "^1.9.0"
+    "alea": "^1.0.1",
+    "p5": "^1.9.0",
+    "simplex-noise": "^3.0.1"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^2.6.3",
-    "eslint": "^8.56.0",
-    "lint-staged": "^15.2.1",
+    "@antfu/eslint-config": "^2.6.4",
+    "@types/p5": "^1.7.6",
+    "eslint": "^8.57.0",
+    "lint-staged": "^15.2.2",
     "simple-git-hooks": "^2.9.0",
-    "typescript": "^5.2.2",
-    "vite": "^5.0.8"
+    "typescript": "^5.3.3",
+    "vite": "^5.1.4"
   },
   "simple-git-hooks": {
     "pre-commit": "[ \"$OS\" = \"Windows_NT\" ] && cmd.exe /c \"npm run lint-staged\" || npm run lint-staged"
