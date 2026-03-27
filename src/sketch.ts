@@ -1,10 +1,11 @@
 import P5 from 'p5'
-import SimplexNoise from 'simplex-noise'
+import { createNoise2D } from 'simplex-noise'
 import setttings from './settings'
 
 let seed: number
 
 const nwidth = setttings.nwidth
+// eslint-disable-next-line unused-imports/no-unused-vars
 const nheight = setttings.nheight
 const swidth = setttings.swidth
 const sheight = setttings.sheight
@@ -15,14 +16,12 @@ const exportImage = false
 let noi: P5.Shader
 let colors = ['#120F1F', '#1F3018', '#7B7D30', '#B08247', '#FAD47D']
 function sketch(p: P5) {
-  p.preload = () => {
+  p.setup = async () => {
     scale = nwidth / swidth
     seed = p.int(p.random(setttings.seed))
     seed = p.int(999999)// TODO remove
-    noi = p.loadShader('/noiseShadowVert.glsl', '/noiseShadowFrag.glsl')
-  }
-  p.setup = () => {
     p.createCanvas(p.int(swidth * scale), p.int(sheight * scale), p.WEBGL)
+    noi = await p.loadShader('/noiseShadowVert.glsl', '/noiseShadowFrag.glsl')
     p.translate(-p.width / 2, -p.height / 2)
     // p.pixelDensity(2)
     p.smooth()
@@ -92,8 +91,8 @@ function sketch(p: P5) {
       const y = v * amp
       const hh = (v - av) * amp * 5
 
-      noi.setUniform('displace', p.random(100))
       p.shader(noi)
+      noi.setUniform('displace', p.random(100))
       const backCol = p.lerpColor(p.color('#B4CBFD'), p.color('#120F1F'), v)
       // 渲染背景光照
       p.beginShape()
@@ -118,7 +117,8 @@ function sketch(p: P5) {
       p.beginShape()
       p.vertex(0, p.height)
       for (let j = 0; j <= p.width; j++) {
-        const simplex = new SimplexNoise(seed * 0.001); let noi = p.float(simplex.noise2D(j * detH * p.lerp(2, 0.8, av), y * detH) as unknown as string) * 0.5 + 0.5
+        const noise2D = createNoise2D()
+        let noi = noise2D(j * detH * p.lerp(2, 0.8, av), y * detH) * 0.5 + 0.5
         noi = p.pow(noi, 1.4)
         const yy = y - hh * noi
         p.vertex(j, yy)
@@ -184,8 +184,8 @@ function sketch(p: P5) {
       //
       //
       p.blendMode(p.ADD)
-      noi.setUniform('displace', p.random(100))
       p.shader(noi)
+      noi.setUniform('displace', p.random(100))
       p.beginShape()
       p.fill(180, 203, 253, 0)
       p.vertex(0, 0)
@@ -210,7 +210,7 @@ function sketch(p: P5) {
       const va = p.random(1)
       const ang = p.lerp(p.random(p.TAU), p.lerp(p.PI, p.TAU, va), p.random(p.random(0.4), 1))
       p.strokeWeight(p.random(1, 1.8))
-      p.stroke(getColor(val + p.random(2) * p.random(1) + va) as unknown as number, p.random(255))// TODO 这里可能有问题，关于颜色
+      p.stroke(getColor(val + p.random(2) * p.random(1) + va))// TODO 这里可能有问题，关于颜色
       if (p.random(1) < 0.1 + va * 0.5)
         p.blendMode(p.ADD)
       else p.blendMode(p.BLEND)
