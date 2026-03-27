@@ -5,8 +5,6 @@ import setttings from './settings'
 let seed: number
 
 const nwidth = setttings.nwidth
-// eslint-disable-next-line unused-imports/no-unused-vars
-const nheight = setttings.nheight
 const swidth = setttings.swidth
 const sheight = setttings.sheight
 let scale = 1
@@ -15,6 +13,7 @@ const exportImage = false
 // let colors = ['#284E34', '#BCA978', '#896F3D', '#38271D', '#BF0624']
 let noi: P5.Shader
 let colors = ['#120F1F', '#1F3018', '#7B7D30', '#B08247', '#FAD47D']
+
 function sketch(p: P5) {
   p.setup = async () => {
     scale = nwidth / swidth
@@ -30,8 +29,10 @@ function sketch(p: P5) {
 
     if (exportImage)
       saveImage()
-    //
-    //
+  }
+
+  p.draw = () => {
+    p.noLoop()
   }
 
   p.keyPressed = () => {
@@ -63,7 +64,6 @@ function sketch(p: P5) {
   }
 
   function generate() {
-    //
     p.randomSeed(seed)
     p.noiseSeed(seed)
 
@@ -80,7 +80,6 @@ function sketch(p: P5) {
 
     const hpx = p.random(-0.2, 1.2) * p.width
     const hpy = p.random(-0.5, -0.2) * p.height
-    // console.log('dth:', detH, 'amp:', amp, 'detCol:', detCol, 'detSiz:', detSiz, 'detZon:', detZon, 'hpx:', hpx, 'hpy:', hpy)
     p.noStroke()
     for (let i = 0; i < mountains; i++) {
       let av = (i + 0) * 1.0 / mountains
@@ -94,7 +93,6 @@ function sketch(p: P5) {
       p.shader(noi)
       noi.setUniform('displace', p.random(100))
       const backCol = p.lerpColor(p.color('#B4CBFD'), p.color('#120F1F'), v)
-      // 渲染背景光照
       p.beginShape()
       backCol.setAlpha(24)
       p.fill(backCol)
@@ -113,7 +111,6 @@ function sketch(p: P5) {
 
       const grassCol = getColor(2 + i * 0.2)
       p.fill(p.lerpColor(grassCol, p.color(0), p.random(0.4, 1)))
-      // fill('#B8BF1F')
       p.beginShape()
       p.vertex(0, p.height)
       for (let j = 0; j <= p.width; j++) {
@@ -127,7 +124,7 @@ function sketch(p: P5) {
           const nx = j
           const vv = p.random(p.random(0.8, 1.4))
           const ny = p.lerp(yy, y, vv)
-          let ns = hh * 0.7 * p.lerp(0.3, 1, v) * p.lerp(0.003, 0.1, p.noise(nx * detSiz, ny * detSiz)) //* p.random(0.004, 0.1)
+          let ns = hh * 0.7 * p.lerp(0.3, 1, v) * p.lerp(0.003, 0.1, p.noise(nx * detSiz, ny * detSiz))
           ns *= p.lerp(0.5, 1, vv)
           ns *= p.random(1, 2)
 
@@ -150,7 +147,7 @@ function sketch(p: P5) {
       p.vertex(p.width, p.height)
       p.endShape()
 
-      const aux2 = ['#2B2400', '#684D07', '#820318', '#0F1B36'] // ['#2B2C01', '#886E0B', '#93040F', '#0F1B36'] //['#1D2469', '#B44021', '#F6EB00', '#01A14E']
+      const aux2 = ['#2B2400', '#684D07', '#820318', '#0F1B36']
       colors = aux2
 
       three.sort((a, b) => a.compareTo(b))
@@ -164,7 +161,6 @@ function sketch(p: P5) {
       }
       p.noStroke()
 
-      //
       p.blendMode(p.ADD)
       const dd = p.width * p.random(0.4, 1.8)
       p.beginShape()
@@ -178,11 +174,8 @@ function sketch(p: P5) {
       p.endShape()
       p.blendMode(p.BLEND)
 
-      // birds
       birds()
 
-      //
-      //
       p.blendMode(p.ADD)
       p.shader(noi)
       noi.setUniform('displace', p.random(100))
@@ -201,7 +194,6 @@ function sketch(p: P5) {
   function cir(x: number, y: number, w: number, h: number, val: number) {
     p.noStroke()
     p.fill(p.lerpColor(p.lerpColor(p.color('#120F1F'), getColor(val), p.random(0.05, 0.25)), p.color(0), p.random(0.8, 0.9)))
-    // fill(col);
     p.ellipse(x, y, w - 1, h - 1)
 
     const cc = p.int(p.PI * w * h * p.random(0.06, p.random(0.08, 0.1)) * 0.8)
@@ -210,7 +202,7 @@ function sketch(p: P5) {
       const va = p.random(1)
       const ang = p.lerp(p.random(p.TAU), p.lerp(p.PI, p.TAU, va), p.random(p.random(0.4), 1))
       p.strokeWeight(p.random(1, 1.8))
-      p.stroke(getColor(val + p.random(2) * p.random(1) + va))// TODO 这里可能有问题，关于颜色
+      p.stroke(getColor(val + p.random(2) * p.random(1) + va))
       if (p.random(1) < 0.1 + va * 0.5)
         p.blendMode(p.ADD)
       else p.blendMode(p.BLEND)
@@ -252,8 +244,6 @@ function sketch(p: P5) {
   }
 
   function birds() {
-    //
-    //
     p.fill(0)
     const des = p.random(10000)
     const det = p.random(0.01)
@@ -282,7 +272,6 @@ function sketch(p: P5) {
       p.vertex(x + hdx * 0.5 + vdx * 0.05, y + hdy * 0.5 + vdy * 0.05)
       p.vertex(x + vdx * (0.3 + dy), y + vdy * (0.3 + dy))
       p.vertex(x - hdx * 0.5 + vdx * 0.05, y - hdy * 0.5 + vdy * 0.05)
-      // p.vertex(x, y - 10)
       p.endShape(p.CLOSE)
     }
   }
@@ -291,12 +280,7 @@ function sketch(p: P5) {
     const timestamp = `${p.year() + p.nf(p.month(), 2) + p.nf(p.day(), 2)}-${p.nf(p.hour(), 2)}${p.nf(p.minute(), 2)}${p.nf(p.second(), 2)}`
     p.saveCanvas(`${timestamp}-${seed}`, 'png')
   }
-  //
-  //
-  //
-  // function rcol() {
-  //   return colors[p.floor(p.random(colors.length))]
-  // }
+
   function getColor(vv?: number) {
     if (vv === undefined)
       return getColor(p.random(colors.length))
@@ -308,5 +292,7 @@ function sketch(p: P5) {
   }
 }
 
-const p5 = new P5(sketch, document.getElementById('sketch')!)
-export default p5
+export async function createP5App(container: HTMLElement) {
+  const instance = new P5(sketch, container)
+  return instance
+}
