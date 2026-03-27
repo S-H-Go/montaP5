@@ -63,13 +63,22 @@ function sketch(p: P5) {
     }
   }
 
+  function getCellKey(x: number, y: number, cellSize: number) {
+    return `${Math.floor(x / cellSize)},${Math.floor(y / cellSize)}`
+  }
+
   function generate() {
     p.randomSeed(seed)
     p.noiseSeed(seed)
 
+    const noise2D = createNoise2D(() => p.random())
+
     p.background(p.color('#B4CBFD'))
 
     const mountains = 20
+    const stepX = 1
+    const attemptsPerColumn = 7
+    const collisionCellSize = 12
 
     const detH = p.random(0.0012, 0.002) * 0.8
     const amp = p.height * 0.9
@@ -104,7 +113,8 @@ function sketch(p: P5) {
       p.vertex(0, amp)
       p.endShape()
       p.resetShader()
-      const three = []
+      const three: Point[] = []
+      const collisionGrid = new Map<string, Point[]>()
 
       const aux = ['#120F1F', '#1F3018', '#7B7D30', '#B08247', '#FAD47D']
       colors = aux
@@ -113,14 +123,13 @@ function sketch(p: P5) {
       p.fill(p.lerpColor(grassCol, p.color(0), p.random(0.4, 1)))
       p.beginShape()
       p.vertex(0, p.height)
-      for (let j = 0; j <= p.width; j++) {
-        const noise2D = createNoise2D()
+      for (let j = 0; j <= p.width; j += stepX) {
         let noi = noise2D(j * detH * p.lerp(2, 0.8, av), y * detH) * 0.5 + 0.5
         noi = p.pow(noi, 1.4)
         const yy = y - hh * noi
         p.vertex(j, yy)
 
-        for (let l = 0; l < 8; l++) {
+        for (let l = 0; l < attemptsPerColumn; l++) {
           const nx = j
           const vv = p.random(p.random(0.8, 1.4))
           const ny = p.lerp(yy, y, vv)
@@ -131,20 +140,45 @@ function sketch(p: P5) {
           ns *= p.pow(1 - p.constrain(p.noise(nx * detZon, ny * detZon, i * 200 * detZon) * 16 - 10, 0, 1), 8)
           if (ns <= 0)
             continue
+
           let add = true
-          for (let k = 0; k < three.length; k++) {
-            const other = three[k]
-            if (p.dist(nx, ny, other.x, other.y) < (ns + other.s) * 0.4) {
-              add = false
-              break
+          const cellX = Math.floor(nx / collisionCellSize)
+          const cellY = Math.floor(ny / collisionCellSize)
+
+          for (let offsetY = -1; offsetY <= 1 && add; offsetY++) {
+            for (let offsetX = -1; offsetX <= 1; offsetX++) {
+              const nearby = collisionGrid.get(`${cellX + offsetX},${cellY + offsetY}`)
+              if (!nearby)
+                continue
+
+              for (let k = 0; k < nearby.length; k++) {
+                const other = nearby[k]
+                if (p.dist(nx, ny, other.x, other.y) < (ns + other.s) * 0.4) {
+                  add = false
+                  break
+                }
+              }
+
+              if (!add)
+                break
             }
           }
-          if (add)
-            three.push(new Point(nx, ny, ns))
+
+          if (add) {
+            const point = new Point(nx, ny, ns)
+            three.push(point)
+            const key = getCellKey(nx, ny, collisionCellSize)
+            const bucket = collisionGrid.get(key)
+            if (bucket)
+              bucket.push(point)
+            else
+              collisionGrid.set(key, [point])
+          }
         }
       }
 
       p.vertex(p.width, p.height)
+      p.vertex(p.width, y)
       p.endShape()
 
       const aux2 = ['#2B2400', '#684D07', '#820318', '#0F1B36']
@@ -196,7 +230,7 @@ function sketch(p: P5) {
     p.fill(p.lerpColor(p.lerpColor(p.color('#120F1F'), getColor(val), p.random(0.05, 0.25)), p.color(0), p.random(0.8, 0.9)))
     p.ellipse(x, y, w - 1, h - 1)
 
-    const cc = p.int(p.PI * w * h * p.random(0.06, p.random(0.08, 0.1)) * 0.8)
+    const cc = Math.min(110, p.int(p.PI * w * h * p.random(0.06, p.random(0.08, 0.1)) * 0.8))
     for (let i = 0; i < cc; i++) {
       const dd = p.sqrt(p.random(p.random(0.05, 0.8), 1) * p.random(0.9, 1)) * 0.5
       const va = p.random(1)
