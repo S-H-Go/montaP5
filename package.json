@@ -3,6 +3,7 @@
   "type": "module",
   "version": "0.0.0",
   "private": true,
+  "packageManager": "pnpm@10.6.5",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
@@ -12,17 +13,17 @@
   },
   "dependencies": {
     "alea": "^1.0.1",
-    "p5": "^1.9.0",
-    "simplex-noise": "^3.0.1"
+    "p5": "^2.2.3",
+    "simplex-noise": "^4.0.3"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^2.6.4",
-    "@types/p5": "^1.7.6",
-    "eslint": "^8.57.0",
-    "lint-staged": "^15.2.2",
-    "simple-git-hooks": "^2.9.0",
-    "typescript": "^5.3.3",
-    "vite": "^5.1.4"
+    "@antfu/eslint-config": "^7.7.3",
+    "@types/p5": "^1.7.7",
+    "eslint": "^10.1.0",
+    "lint-staged": "^16.4.0",
+    "simple-git-hooks": "^2.13.1",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.3"
   },
   "simple-git-hooks": {
     "pre-commit": "[ \"$OS\" = \"Windows_NT\" ] && cmd.exe /c \"npm run lint-staged\" || npm run lint-staged"
