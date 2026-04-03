@@ -1,43 +1,42 @@
 import P5 from 'p5'
 import { createNoise2D } from 'simplex-noise'
-import setttings from './settings'
+import { settings } from './settings'
 
 let seed: number
-
-const nwidth = setttings.nwidth
-// eslint-disable-next-line unused-imports/no-unused-vars
-const nheight = setttings.nheight
-const swidth = setttings.swidth
-const sheight = setttings.sheight
 let scale = 1
-
-const exportImage = false
 // let colors = ['#284E34', '#BCA978', '#896F3D', '#38271D', '#BF0624']
 let noi: P5.Shader
 let colors = ['#120F1F', '#1F3018', '#7B7D30', '#B08247', '#FAD47D']
+
+const PROFILE_RENDER = true
+const ENABLE_BIRDS = true
+const ENABLE_SHADER_OVERLAY = true
+const ENABLE_CIR = true
+const ENABLE_CIR_POINTS = true
+
 function sketch(p: P5) {
   p.setup = async () => {
-    scale = nwidth / swidth
-    seed = p.int(p.random(setttings.seed))
-    seed = p.int(999999)// TODO remove
-    p.createCanvas(p.int(swidth * scale), p.int(sheight * scale), p.WEBGL)
+    scale = settings.nwidth / settings.swidth
+    seed = p.int(settings.seed)
+    p.createCanvas(p.int(settings.swidth * scale), p.int(settings.sheight * scale), p.WEBGL)
     noi = await p.loadShader('/noiseShadowVert.glsl', '/noiseShadowFrag.glsl')
     p.translate(-p.width / 2, -p.height / 2)
-    // p.pixelDensity(2)
     p.smooth()
 
     generate()
 
-    if (exportImage)
+    if (settings.exportImage)
       saveImage()
-    //
-    //
+  }
+
+  p.draw = () => {
+    p.noLoop()
   }
 
   p.keyPressed = () => {
     if (p.key === 's') { saveImage() }
     else {
-      seed = p.int(p.random(setttings.seed))
+      seed = p.int(p.random(999999999))
       p.loop()
       // TODO 不知道为什么需要转换坐标系
       p.translate(-p.width / 2, -p.height / 2)
@@ -62,14 +61,30 @@ function sketch(p: P5) {
     }
   }
 
+  function getCellKey(x: number, y: number, cellSize: number) {
+    return `${Math.floor(x / cellSize)},${Math.floor(y / cellSize)}`
+  }
+
   function generate() {
-    //
+    const generateStart = performance.now()
+    let pointGenerationTime = 0
+    let sortTime = 0
+    let cirTime = 0
+    let cirCount = 0
+    let birdsTime = 0
+    let shaderTime = 0
+
     p.randomSeed(seed)
     p.noiseSeed(seed)
+
+    const noise2D = createNoise2D(() => p.random())
 
     p.background(p.color('#B4CBFD'))
 
     const mountains = 20
+    const stepX = 1
+    const attemptsPerColumn = 7
+    const collisionCellSize = 12
 
     const detH = p.random(0.0012, 0.002) * 0.8
     const amp = p.height * 0.9
@@ -80,7 +95,6 @@ function sketch(p: P5) {
 
     const hpx = p.random(-0.2, 1.2) * p.width
     const hpy = p.random(-0.5, -0.2) * p.height
-    // console.log('dth:', detH, 'amp:', amp, 'detCol:', detCol, 'detSiz:', detSiz, 'detZon:', detZon, 'hpx:', hpx, 'hpy:', hpy)
     p.noStroke()
     for (let i = 0; i < mountains; i++) {
       let av = (i + 0) * 1.0 / mountains
@@ -94,7 +108,6 @@ function sketch(p: P5) {
       p.shader(noi)
       noi.setUniform('displace', p.random(100))
       const backCol = p.lerpColor(p.color('#B4CBFD'), p.color('#120F1F'), v)
-      // 渲染背景光照
       p.beginShape()
       backCol.setAlpha(24)
       p.fill(backCol)
@@ -106,65 +119,97 @@ function sketch(p: P5) {
       p.vertex(0, amp)
       p.endShape()
       p.resetShader()
-      const three = []
+      const three: Point[] = []
+      const collisionGrid = new Map<string, Point[]>()
 
       const aux = ['#120F1F', '#1F3018', '#7B7D30', '#B08247', '#FAD47D']
       colors = aux
 
       const grassCol = getColor(2 + i * 0.2)
       p.fill(p.lerpColor(grassCol, p.color(0), p.random(0.4, 1)))
-      // fill('#B8BF1F')
       p.beginShape()
       p.vertex(0, p.height)
-      for (let j = 0; j <= p.width; j++) {
-        const noise2D = createNoise2D()
+      const pointGenerationStart = performance.now()
+      for (let j = 0; j <= p.width; j += stepX) {
         let noi = noise2D(j * detH * p.lerp(2, 0.8, av), y * detH) * 0.5 + 0.5
         noi = p.pow(noi, 1.4)
         const yy = y - hh * noi
         p.vertex(j, yy)
 
-        for (let l = 0; l < 8; l++) {
+        for (let l = 0; l < attemptsPerColumn; l++) {
           const nx = j
           const vv = p.random(p.random(0.8, 1.4))
           const ny = p.lerp(yy, y, vv)
-          let ns = hh * 0.7 * p.lerp(0.3, 1, v) * p.lerp(0.003, 0.1, p.noise(nx * detSiz, ny * detSiz)) //* p.random(0.004, 0.1)
+          let ns = hh * 0.7 * p.lerp(0.3, 1, v) * p.lerp(0.003, 0.1, p.noise(nx * detSiz, ny * detSiz))
           ns *= p.lerp(0.5, 1, vv)
           ns *= p.random(1, 2)
 
           ns *= p.pow(1 - p.constrain(p.noise(nx * detZon, ny * detZon, i * 200 * detZon) * 16 - 10, 0, 1), 8)
           if (ns <= 0)
             continue
+
           let add = true
-          for (let k = 0; k < three.length; k++) {
-            const other = three[k]
-            if (p.dist(nx, ny, other.x, other.y) < (ns + other.s) * 0.4) {
-              add = false
-              break
+          const cellX = Math.floor(nx / collisionCellSize)
+          const cellY = Math.floor(ny / collisionCellSize)
+
+          for (let offsetY = -1; offsetY <= 1 && add; offsetY++) {
+            for (let offsetX = -1; offsetX <= 1; offsetX++) {
+              const nearby = collisionGrid.get(`${cellX + offsetX},${cellY + offsetY}`)
+              if (!nearby)
+                continue
+
+              for (let k = 0; k < nearby.length; k++) {
+                const other = nearby[k]
+                if (p.dist(nx, ny, other.x, other.y) < (ns + other.s) * 0.4) {
+                  add = false
+                  break
+                }
+              }
+
+              if (!add)
+                break
             }
           }
-          if (add)
-            three.push(new Point(nx, ny, ns))
+
+          if (add) {
+            const point = new Point(nx, ny, ns)
+            three.push(point)
+            const key = getCellKey(nx, ny, collisionCellSize)
+            const bucket = collisionGrid.get(key)
+            if (bucket)
+              bucket.push(point)
+            else
+              collisionGrid.set(key, [point])
+          }
         }
       }
 
       p.vertex(p.width, p.height)
+      p.vertex(p.width, y)
       p.endShape()
+      pointGenerationTime += performance.now() - pointGenerationStart
 
-      const aux2 = ['#2B2400', '#684D07', '#820318', '#0F1B36'] // ['#2B2C01', '#886E0B', '#93040F', '#0F1B36'] //['#1D2469', '#B44021', '#F6EB00', '#01A14E']
+      const aux2 = ['#2B2400', '#684D07', '#820318', '#0F1B36']
       colors = aux2
 
+      const sortStart = performance.now()
       three.sort((a, b) => a.compareTo(b))
+      sortTime += performance.now() - sortStart
       p.noStroke()
-      for (let k = 0; k < three.length; k++) {
-        const t = three[k]
-        const noi = p.noise(t.x * detCol * 0.6, t.y * detCol)
-        const col = i + noi * colors.length * 3
-        const s = t.s * p.random(1, 2)
-        cir(t.x, t.y, s * p.random(0.8, 1.2), s, col)
+      if (ENABLE_CIR) {
+        for (let k = 0; k < three.length; k++) {
+          const t = three[k]
+          const noi = p.noise(t.x * detCol * 0.6, t.y * detCol)
+          const col = i + noi * colors.length * 3
+          const s = t.s * p.random(1, 2)
+          const cirStart = performance.now()
+          cir(t.x, t.y, s * p.random(0.8, 1.2), s, col)
+          cirTime += performance.now() - cirStart
+          cirCount++
+        }
       }
       p.noStroke()
 
-      //
       p.blendMode(p.ADD)
       const dd = p.width * p.random(0.4, 1.8)
       p.beginShape()
@@ -178,43 +223,63 @@ function sketch(p: P5) {
       p.endShape()
       p.blendMode(p.BLEND)
 
-      // birds
-      birds()
+      if (ENABLE_BIRDS) {
+        const birdsStart = performance.now()
+        birds()
+        birdsTime += performance.now() - birdsStart
+      }
 
-      //
-      //
-      p.blendMode(p.ADD)
-      p.shader(noi)
-      noi.setUniform('displace', p.random(100))
-      p.beginShape()
-      p.fill(180, 203, 253, 0)
-      p.vertex(0, 0)
-      p.vertex(p.width, 0)
-      p.fill(180, 203, 253, p.random(80, 120) * (1 - v * 0.5) * 1.0)
-      p.vertex(p.width, p.height)
-      p.vertex(0, p.height)
-      p.endShape()
-      p.blendMode(p.BLEND)
+      if (ENABLE_SHADER_OVERLAY) {
+        const shaderStart = performance.now()
+        p.blendMode(p.ADD)
+        p.shader(noi)
+        noi.setUniform('displace', p.random(100))
+        p.beginShape()
+        p.fill(180, 203, 253, 0)
+        p.vertex(0, 0)
+        p.vertex(p.width, 0)
+        p.fill(180, 203, 253, p.random(80, 120) * (1 - v * 0.5) * 1.0)
+        p.vertex(p.width, p.height)
+        p.vertex(0, p.height)
+        p.endShape()
+        p.blendMode(p.BLEND)
+        shaderTime += performance.now() - shaderStart
+      }
+    }
+
+    if (PROFILE_RENDER) {
+      const total = performance.now() - generateStart
+      console.table({
+        seed,
+        totalMs: Number(total.toFixed(2)),
+        pointGenerationMs: Number(pointGenerationTime.toFixed(2)),
+        sortMs: Number(sortTime.toFixed(2)),
+        cirMs: Number(cirTime.toFixed(2)),
+        cirCount,
+        birdsMs: Number(birdsTime.toFixed(2)),
+        shaderMs: Number(shaderTime.toFixed(2)),
+      })
     }
   }
 
   function cir(x: number, y: number, w: number, h: number, val: number) {
     p.noStroke()
     p.fill(p.lerpColor(p.lerpColor(p.color('#120F1F'), getColor(val), p.random(0.05, 0.25)), p.color(0), p.random(0.8, 0.9)))
-    // fill(col);
     p.ellipse(x, y, w - 1, h - 1)
 
-    const cc = p.int(p.PI * w * h * p.random(0.06, p.random(0.08, 0.1)) * 0.8)
-    for (let i = 0; i < cc; i++) {
-      const dd = p.sqrt(p.random(p.random(0.05, 0.8), 1) * p.random(0.9, 1)) * 0.5
-      const va = p.random(1)
-      const ang = p.lerp(p.random(p.TAU), p.lerp(p.PI, p.TAU, va), p.random(p.random(0.4), 1))
-      p.strokeWeight(p.random(1, 1.8))
-      p.stroke(getColor(val + p.random(2) * p.random(1) + va))// TODO 这里可能有问题，关于颜色
-      if (p.random(1) < 0.1 + va * 0.5)
-        p.blendMode(p.ADD)
-      else p.blendMode(p.BLEND)
-      p.point(x + p.cos(ang) * dd * w, y + p.sin(ang) * dd * h)
+    const cc = Math.min(110, p.int(p.PI * w * h * p.random(0.06, p.random(0.08, 0.1)) * 0.8))
+    if (ENABLE_CIR_POINTS) {
+      for (let i = 0; i < cc; i++) {
+        const dd = p.sqrt(p.random(p.random(0.05, 0.8), 1) * p.random(0.9, 1)) * 0.5
+        const va = p.random(1)
+        const ang = p.lerp(p.random(p.TAU), p.lerp(p.PI, p.TAU, va), p.random(p.random(0.4), 1))
+        p.strokeWeight(p.random(1, 1.8))
+        p.stroke(getColor(val + p.random(2) * p.random(1) + va))
+        if (p.random(1) < 0.1 + va * 0.5)
+          p.blendMode(p.ADD)
+        else p.blendMode(p.BLEND)
+        p.point(x + p.cos(ang) * dd * w, y + p.sin(ang) * dd * h)
+      }
     }
     p.blendMode(p.BLEND)
 
@@ -252,8 +317,6 @@ function sketch(p: P5) {
   }
 
   function birds() {
-    //
-    //
     p.fill(0)
     const des = p.random(10000)
     const det = p.random(0.01)
@@ -282,7 +345,6 @@ function sketch(p: P5) {
       p.vertex(x + hdx * 0.5 + vdx * 0.05, y + hdy * 0.5 + vdy * 0.05)
       p.vertex(x + vdx * (0.3 + dy), y + vdy * (0.3 + dy))
       p.vertex(x - hdx * 0.5 + vdx * 0.05, y - hdy * 0.5 + vdy * 0.05)
-      // p.vertex(x, y - 10)
       p.endShape(p.CLOSE)
     }
   }
@@ -291,12 +353,7 @@ function sketch(p: P5) {
     const timestamp = `${p.year() + p.nf(p.month(), 2) + p.nf(p.day(), 2)}-${p.nf(p.hour(), 2)}${p.nf(p.minute(), 2)}${p.nf(p.second(), 2)}`
     p.saveCanvas(`${timestamp}-${seed}`, 'png')
   }
-  //
-  //
-  //
-  // function rcol() {
-  //   return colors[p.floor(p.random(colors.length))]
-  // }
+
   function getColor(vv?: number) {
     if (vv === undefined)
       return getColor(p.random(colors.length))
@@ -308,5 +365,9 @@ function sketch(p: P5) {
   }
 }
 
-const p5 = new P5(sketch, document.getElementById('sketch')!)
-export default p5
+export async function createP5App(container: HTMLElement) {
+  const instance = new P5(sketch, container)
+  await new Promise(resolve => setTimeout(resolve, 0))
+  const canvas = container.querySelector('canvas') as HTMLCanvasElement | null
+  return { instance, canvas }
+}

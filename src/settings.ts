@@ -1,6 +1,17 @@
+export type RenderSettings = {
+  seed: number
+  nwidth: number
+  nheight: number
+  swidth: number
+  sheight: number
+  scale: number
+  exportImage: boolean
+}
+
 const temp = 500
-const setttings = {
-  seed: 9999999999,
+
+export const settings: RenderSettings = {
+  seed: 999999,
   nwidth: temp,
   nheight: temp,
   swidth: temp,
@@ -9,4 +20,6 @@ const setttings = {
   exportImage: false,
 }
 
-export default setttings
+export function updateSettings(partial: Partial<RenderSettings>) {
+  Object.assign(settings, partial)
+}
