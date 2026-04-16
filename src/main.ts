@@ -82,7 +82,7 @@ app.innerHTML = `
   </main>
 `
 
-const startScreen = document.getElementById('start-screen')
+const startScreen = document.getElementById('start-screen') as HTMLElement | null
 const form = document.getElementById('render-form') as HTMLFormElement | null
 const seedInput = document.getElementById('seed-input') as HTMLInputElement | null
 const widthInput = document.getElementById('width-input') as HTMLInputElement | null
@@ -90,12 +90,26 @@ const heightInput = document.getElementById('height-input') as HTMLInputElement 
 const randomSeedButton = document.getElementById('random-seed-button') as HTMLButtonElement | null
 const startButton = document.getElementById('start-button') as HTMLButtonElement | null
 const rerenderButton = document.getElementById('rerender-button') as HTMLButtonElement | null
-const sketchPanel = document.getElementById('sketch-panel')
-const sketchRoot = document.getElementById('sketch')
-const currentMeta = document.getElementById('current-meta')
+const sketchPanel = document.getElementById('sketch-panel') as HTMLElement | null
+const sketchRoot = document.getElementById('sketch') as HTMLElement | null
+const currentMeta = document.getElementById('current-meta') as HTMLElement | null
 
 if (!form || !seedInput || !widthInput || !heightInput || !randomSeedButton || !startButton || !rerenderButton || !sketchRoot || !sketchPanel || !currentMeta)
   throw new Error('Missing UI elements')
+
+const ui = {
+  startScreen,
+  form,
+  seedInput,
+  widthInput,
+  heightInput,
+  randomSeedButton,
+  startButton,
+  rerenderButton,
+  sketchPanel,
+  sketchRoot,
+  currentMeta,
+}
 
 let started = false
 
@@ -108,7 +122,7 @@ function randomSeed() {
 }
 
 function syncMeta() {
-  currentMeta.innerHTML = `
+  ui.currentMeta.innerHTML = `
     <span class="meta-chip">seed ${settings.seed}</span>
     <span class="meta-separator">/</span>
     <span class="meta-chip">canvas ${settings.swidth} × ${settings.sheight}</span>
@@ -116,7 +130,7 @@ function syncMeta() {
 }
 
 function showStillImage(dataUrl: string, width: number, height: number) {
-  sketchRoot.innerHTML = ''
+  ui.sketchRoot.innerHTML = ''
 
   const image = document.createElement('img')
   image.src = dataUrl
@@ -125,48 +139,56 @@ function showStillImage(dataUrl: string, width: number, height: number) {
   image.width = width
   image.height = height
 
-  sketchRoot.appendChild(image)
+  ui.sketchRoot.appendChild(image)
 }
 
 async function renderWithCurrentSettings() {
-  startButton.disabled = true
-  startButton.textContent = '渲染中...'
-  rerenderButton.disabled = true
-  sketchRoot.innerHTML = ''
+  ui.startButton.disabled = true
+  ui.startButton.textContent = '渲染中...'
+  ui.rerenderButton.disabled = true
+  ui.sketchRoot.replaceChildren()
 
-  const { instance, canvas } = await createP5App(sketchRoot)
+  const { instance, canvas } = await createP5App(ui.sketchRoot)
   await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+  await new Promise(resolve => setTimeout(resolve, 50))
 
-  const targetCanvas = canvas ?? (sketchRoot.querySelector('canvas') as HTMLCanvasElement | null)
+  const targetCanvas = canvas ?? (ui.sketchRoot.querySelector('canvas') as HTMLCanvasElement | null)
 
   if (!targetCanvas)
     throw new Error('Missing rendered canvas')
 
-  const dataUrl = targetCanvas.toDataURL('image/png')
+  let dataUrl: string
+  try {
+    dataUrl = targetCanvas.toDataURL('image/png')
+  }
+  catch (error) {
+    instance.remove()
+    throw new Error(`Canvas export failed: ${error instanceof Error ? error.message : String(error)}`)
+  }
   const { width, height } = targetCanvas
 
   instance.remove()
   showStillImage(dataUrl, width, height)
 
   syncMeta()
-  sketchPanel.style.display = 'grid'
-  startScreen?.setAttribute('data-started', 'true')
+  ui.sketchPanel.style.display = 'grid'
+  ui.startScreen?.setAttribute('data-started', 'true')
   started = true
-  startButton.disabled = false
-  startButton.textContent = '开始渲染'
-  rerenderButton.disabled = false
+  ui.startButton.disabled = false
+  ui.startButton.textContent = '开始渲染'
+  ui.rerenderButton.disabled = false
 }
 
-randomSeedButton.addEventListener('click', () => {
-  seedInput.value = String(randomSeed())
+ui.randomSeedButton.addEventListener('click', () => {
+  ui.seedInput.value = String(randomSeed())
 })
 
-form.addEventListener('submit', async (event) => {
+ui.form.addEventListener('submit', async (event) => {
   event.preventDefault()
 
-  const seed = Number.parseInt(seedInput.value || '0', 10)
-  const width = clampDimension(Number.parseInt(widthInput.value || '500', 10))
-  const height = clampDimension(Number.parseInt(heightInput.value || '500', 10))
+  const seed = Number.parseInt(ui.seedInput.value || '0', 10)
+  const width = clampDimension(Number.parseInt(ui.widthInput.value || '500', 10))
+  const height = clampDimension(Number.parseInt(ui.heightInput.value || '500', 10))
 
   updateSettings({
     seed: Number.isFinite(seed) ? Math.max(0, seed) : randomSeed(),
@@ -176,22 +198,22 @@ form.addEventListener('submit', async (event) => {
     sheight: height,
   })
 
-  widthInput.value = String(width)
-  heightInput.value = String(height)
-  seedInput.value = String(settings.seed)
+  ui.widthInput.value = String(width)
+  ui.heightInput.value = String(height)
+  ui.seedInput.value = String(settings.seed)
 
   try {
     await renderWithCurrentSettings()
   }
   catch (error) {
-    startButton.disabled = false
-    startButton.textContent = started ? '重新渲染' : '开始渲染'
-    rerenderButton.disabled = false
+    ui.startButton.disabled = false
+    ui.startButton.textContent = started ? '重新渲染' : '开始渲染'
+    ui.rerenderButton.disabled = false
     console.error(error)
   }
 })
 
-rerenderButton.addEventListener('click', () => {
-  seedInput.value = String(randomSeed())
-  form.requestSubmit()
+ui.rerenderButton.addEventListener('click', () => {
+  ui.seedInput.value = String(randomSeed())
+  ui.form.requestSubmit()
 })

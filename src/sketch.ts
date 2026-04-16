@@ -19,7 +19,7 @@ function sketch(p: P5) {
     scale = settings.nwidth / settings.swidth
     seed = p.int(settings.seed)
     p.createCanvas(p.int(settings.swidth * scale), p.int(settings.sheight * scale), p.WEBGL)
-    noi = await p.loadShader('/noiseShadowVert.glsl', '/noiseShadowFrag.glsl')
+    noi = await p.loadShader('./noiseShadowVert.glsl', './noiseShadowFrag.glsl')
     p.translate(-p.width / 2, -p.height / 2)
     p.smooth()
 
